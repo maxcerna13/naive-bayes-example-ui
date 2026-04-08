@@ -224,6 +224,166 @@
       }
 
     </section>
+
+    <!-- ─── DIVIDER ─── -->
+    <div class="divider">
+      <span class="divider-line"></span>
+      <span class="divider-dot"></span>
+      <span class="divider-line"></span>
+    </div>
+
+    <!-- ─── PANEL: PROYECCIÓN POR JORNADA ─── -->
+    <section class="panel panel-03">
+      <div class="panel-header">
+        <span class="panel-num">03</span>
+        <div>
+          <h2 class="panel-title">PROYECCIÓN POR JORNADA</h2>
+          <p class="panel-desc">Proyecta estadísticas a una jornada futura con escenarios y forma reciente</p>
+        </div>
+      </div>
+
+      <form class="predict-form" (ngSubmit)="projectJornada()">
+        <div class="form-row-full">
+          <label class="form-label">EQUIPO</label>
+          <input class="form-input input-team" type="text" placeholder="Ej: Antigua GFC"
+                 [(ngModel)]="projForm.equipo" name="proj-equipo" required />
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label class="form-label">JJ <span class="form-hint">Jornada actual</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.jj" name="proj-jj" min="1" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">PTS <span class="form-hint">Puntos</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.pts" name="proj-pts" min="0" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">JG <span class="form-hint">Ganados</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.jg" name="proj-jg" min="0" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">JE <span class="form-hint">Empatados</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.je" name="proj-je" min="0" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">JP <span class="form-hint">Perdidos</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.jp" name="proj-jp" min="0" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">GF <span class="form-hint">Goles Favor</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.gf" name="proj-gf" min="0" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">GC <span class="form-hint">Goles Contra</span></label>
+            <input class="form-input" type="number" [(ngModel)]="projForm.gc" name="proj-gc" min="0" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">DIF <span class="form-hint">Auto-calculado</span></label>
+            <div class="diff-display" [class.diff-neg]="projForm.gf - projForm.gc < 0">
+              {{ projForm.gf - projForm.gc >= 0 ? '+' : '' }}{{ projForm.gf - projForm.gc }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Target Jornada -->
+        <div class="target-row">
+          <div class="form-field target-field">
+            <label class="form-label">PROYECTAR A JORNADA <span class="form-hint">Jornada objetivo</span></label>
+            <input class="form-input target-input" type="number"
+                   [(ngModel)]="targetJornada" name="targetJornada" min="1" />
+          </div>
+          <div class="jornada-delta" [class.delta-pos]="targetJornada - projForm.jj > 0">
+            <span class="delta-num">+{{ targetJornada - projForm.jj }}</span>
+            <span class="delta-label">PARTIDOS RESTANTES</span>
+          </div>
+        </div>
+
+        <!-- Forma reciente -->
+        <div class="forma-section">
+          <div class="forma-header">
+            <span class="forma-title">ÚLTIMOS PARTIDOS <span class="forma-optional">(opcional)</span></span>
+            <span class="forma-hint-text">Clic para cambiar · ? = no incluir</span>
+          </div>
+          <div class="match-slots">
+            @for (slot of matchSlots(); track $index) {
+              <button type="button" [class]="'match-slot ' + slotClass(slot)"
+                      (click)="toggleSlot($index)">
+                <span class="slot-result">{{ slotLabel(slot) }}</span>
+                <span class="slot-num">P{{ $index + 1 }}</span>
+              </button>
+            }
+          </div>
+          @if (formaReciente(); as fr) {
+            <div class="forma-summary">
+              <span class="fsumm-item fsumm-win">{{ fr.jg }} <em>G</em></span>
+              <span class="fsumm-sep">·</span>
+              <span class="fsumm-item fsumm-draw">{{ fr.je }} <em>E</em></span>
+              <span class="fsumm-sep">·</span>
+              <span class="fsumm-item fsumm-loss">{{ fr.jp }} <em>P</em></span>
+              <span class="fsumm-note">→ Se agregará escenario "Forma reciente"</span>
+            </div>
+          }
+        </div>
+
+        <button class="btn btn-project" type="submit" [disabled]="projecting() || !projForm.equipo.trim()">
+          <span class="btn-icon" [class.spin]="projecting()">{{ projecting() ? '⟳' : '◎' }}</span>
+          {{ projecting() ? 'PROYECTANDO…' : 'PROYECTAR A JORNADA ' + targetJornada }}
+        </button>
+      </form>
+
+      @if (projError()) {
+        <div class="alert alert-error">{{ projError() }}</div>
+      }
+
+      @if (projResult(); as scenarios) {
+        <div class="scenarios-wrap">
+          <div class="scenarios-header">
+            <span class="scenarios-title">JORNADA {{ targetJornada }} — {{ projForm.equipo | uppercase }}</span>
+            <span class="scenarios-sub">{{ scenarios.length }} escenarios proyectados</span>
+          </div>
+          <div class="scenario-cards">
+            @for (s of scenarios; track s.escenario) {
+              <div class="scenario-card"
+                   [class.scard-si]="s.prediccion.prediction === 'SI'"
+                   [class.scard-no]="s.prediccion.prediction !== 'SI'"
+                   [class.scard-featured]="s.escenario === 'Forma reciente'">
+                @if (s.escenario === 'Forma reciente') {
+                  <span class="scard-badge">★ FORMA RECIENTE</span>
+                }
+                <div class="scard-name">{{ s.escenario.toUpperCase() }}</div>
+                <div class="scard-pts">
+                  <span class="spts-val">{{ s.statsProyectadas.pts }}</span>
+                  <span class="spts-label">PTS</span>
+                </div>
+                <div class="scard-record">
+                  <span class="srec win">{{ s.statsProyectadas.jg }}G</span>
+                  <span class="srec-sep">·</span>
+                  <span class="srec draw">{{ s.statsProyectadas.je }}E</span>
+                  <span class="srec-sep">·</span>
+                  <span class="srec loss">{{ s.statsProyectadas.jp }}P</span>
+                </div>
+                <div class="scard-prob">
+                  <div class="sprob-track">
+                    <div class="sprob-fill"
+                         [class.spfill-si]="s.prediccion.prediction === 'SI'"
+                         [class.spfill-no]="s.prediccion.prediction !== 'SI'"
+                         [style.width]="barWidth(s.prediccion.probabilityYes)"></div>
+                  </div>
+                  <span class="sprob-pct">{{ pct(s.prediccion.probabilityYes) }}</span>
+                </div>
+                <div class="scard-verdict"
+                     [class.sverdict-si]="s.prediccion.prediction === 'SI'"
+                     [class.sverdict-no]="s.prediccion.prediction !== 'SI'">
+                  {{ s.prediccion.prediction === 'SI' ? 'DESCIENDE' : 'PERMANECE' }}
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+    </section>
   </main>
 
   <footer class="footer">

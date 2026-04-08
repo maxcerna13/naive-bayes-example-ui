@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DescensoService, MatchRecord, PredictionResult, ConfusionMatrix } from './descenso.service';
+import { DescensoService, MatchRecord, PredictionResult, ConfusionMatrix, ScenarioResult, ProjectionRequest } from './descenso.service';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +32,37 @@ export class AppComponent {
     gc: 0,
     diff: 0
   };
+
+  // ── Panel 03: Proyección por jornada ──────────────────────────────────────
+  projForm: MatchRecord = {
+    equipo: '',
+    jj: 40,
+    pts: 0,
+    jg: 0,
+    je: 0,
+    jp: 0,
+    gf: 0,
+    gc: 0,
+    diff: 0
+  };
+
+  targetJornada = 44;
+
+  matchSlots = signal<Array<'G' | 'E' | 'P' | null>>([null, null, null, null, null]);
+
+  formaReciente = computed(() => {
+    const set = this.matchSlots().filter(s => s !== null);
+    if (set.length === 0) return null;
+    return {
+      jg: set.filter(s => s === 'G').length,
+      je: set.filter(s => s === 'E').length,
+      jp: set.filter(s => s === 'P').length,
+    };
+  });
+
+  projecting = signal(false);
+  projResult = signal<ScenarioResult[] | null>(null);
+  projError  = signal<string | null>(null);
 
   train() {
     this.training.set(true);
@@ -73,5 +104,47 @@ export class AppComponent {
 
   barWidth(val: number): string {
     return (val * 100).toFixed(1) + '%';
+  }
+
+  toggleSlot(i: number) {
+    const cycle: Array<'G' | 'E' | 'P' | null> = [null, 'G', 'E', 'P'];
+    const slots = [...this.matchSlots()];
+    const idx = cycle.indexOf(slots[i]);
+    slots[i] = cycle[(idx + 1) % cycle.length];
+    this.matchSlots.set(slots);
+  }
+
+  slotLabel(s: 'G' | 'E' | 'P' | null): string {
+    return s ?? '?';
+  }
+
+  slotClass(s: 'G' | 'E' | 'P' | null): string {
+    if (s === 'G') return 'slot-win';
+    if (s === 'E') return 'slot-draw';
+    if (s === 'P') return 'slot-loss';
+    return 'slot-empty';
+  }
+
+  projectJornada() {
+    if (!this.projForm.equipo.trim()) return;
+    this.projForm.diff = this.projForm.gf - this.projForm.gc;
+    this.projecting.set(true);
+    this.projResult.set(null);
+    this.projError.set(null);
+    const req: ProjectionRequest = {
+      current: { ...this.projForm },
+      targetJornada: this.targetJornada,
+      formaReciente: this.formaReciente() ?? undefined
+    };
+    this.svc.predictJornada(req).subscribe({
+      next: (res) => {
+        this.projResult.set(res);
+        this.projecting.set(false);
+      },
+      error: () => {
+        this.projError.set('Error al proyectar. Asegúrate de que el modelo fue entrenado primero.');
+        this.projecting.set(false);
+      }
+    });
   }
 }

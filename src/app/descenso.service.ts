@@ -33,6 +33,24 @@ export interface ConfusionMatrix {
   f1: number;
 }
 
+export interface FormaReciente {
+  jg: number;
+  je: number;
+  jp: number;
+}
+
+export interface ProjectionRequest {
+  current: MatchRecord;
+  targetJornada: number;
+  formaReciente?: FormaReciente;
+}
+
+export interface ScenarioResult {
+  escenario: string;
+  statsProyectadas: MatchRecord;
+  prediccion: PredictionResult;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DescensoService {
   private readonly http = inject(HttpClient);
@@ -44,5 +62,9 @@ export class DescensoService {
 
   predict(record: MatchRecord): Observable<PredictionResult> {
     return this.http.post<PredictionResult>(`${this.BASE}/predict`, record);
+  }
+
+  predictJornada(request: ProjectionRequest): Observable<ScenarioResult[]> {
+    return this.http.post<ScenarioResult[]>(`${this.BASE}/predict-jornada`, request);
   }
 }
