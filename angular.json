@@ -84,6 +84,9 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "descensogt-ui:build:production"
@@ -120,5 +123,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "9c83fbe1-3909-46ea-ae5d-e3384a0eda12"
   }
 }
